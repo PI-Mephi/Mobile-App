@@ -31,9 +31,6 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     // sendData();
     connectServer();
-    _timer = Timer.periodic(Duration(milliseconds: 20), (_) {
-      sendData();
-    });
     _recognizeTimer = Timer.periodic(Duration(milliseconds: 500), (_) {
       recognizeImage();
     });
@@ -41,11 +38,17 @@ class _HomeScreenState extends State<HomeScreen> {
 
   int current = 0;
 
-  Socket? socket;
+  RawDatagramSocket? _udpSocket;
+  InternetAddress _espAddress = InternetAddress('192.168.4.1');
+  int _espPort = 8888;
 
 
   void connectServer() async {
-    socket = await Socket.connect("192.168.4.1", 80);
+    try {
+      _udpSocket = await RawDatagramSocket.bind(InternetAddress.anyIPv4, 0);
+    } catch (e) {
+      print("Ошибка инициализации UDP: $e");
+    }
   }
 
   String lastRecognized = "";
@@ -72,9 +75,10 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  void sendData() async {
+  void sendData(int number) async {
     try {
-      socket!.add(Uint8List.fromList([current]));
+      var data = Uint8List.fromList([number]);
+      _udpSocket!.send(data, _espAddress, _espPort);
     } catch (e) {
       // print(e);
     }
@@ -86,215 +90,211 @@ class _HomeScreenState extends State<HomeScreen> {
     double height = MediaQuery.of(context).size.height;
     double width = MediaQuery.of(context).size.width;
     return Scaffold(
-      body: MediaQuery.of(context).orientation == Orientation.portrait ? Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Container(
-            height: height * 0.5,
-            width: width,
-            child: Center(
-              child: Mjpeg(
-                stream: "http://192.168.4.3:81/stream",
-                isLive: true,
-                width: width,
-                height: height * 0.5,
-                fit: BoxFit.cover,
-                preprocessor: MjpegPreprocessor(),
-              )
-            ),
-          ),
-          Container(
-            height: height * 0.2,
-            child: Center(
-              child: Text(lastRecognized, style: GoogleFonts.roboto(fontSize: width * 0.04, fontWeight: FontWeight.w500),),
-            ),
-          ),
-          GestureDetector(
-            child: IconButton(
-              onPressed: () {},
-              icon: Icon(Icons.arrow_drop_up, size: width * 0.15, color: Colors.white,),
-              style: IconButton.styleFrom(
-                backgroundColor: Colors.amber,
-                shape: BeveledRectangleBorder(),
+        body: MediaQuery.of(context).orientation == Orientation.portrait ? Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Container(
+              height: height * 0.5,
+              width: width,
+              child: Center(
+                  child: Mjpeg(
+                    stream: "http://192.168.4.2:81/stream",
+                    isLive: true,
+                    width: width,
+                    height: height * 0.5,
+                    fit: BoxFit.cover,
+                    preprocessor: MjpegPreprocessor(),
+                  )
               ),
             ),
-            onLongPress: () {
-              setState(() {
-                current = 1;
-              });
-            },
-            onLongPressEnd: (_) {
-              setState(() {
-                current = 0;
-              });
-            },
-          ),
-          SizedBox(
-            height: height * 0.01,
-          ),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              GestureDetector(
-                child: IconButton(
-                  onPressed: () {},
-                  icon: Icon(Icons.arrow_drop_up, size: width * 0.15, color: Colors.white,),
-                  style: IconButton.styleFrom(
-                    backgroundColor: Colors.amber,
-                    shape: BeveledRectangleBorder(),
+            Container(
+              height: height * 0.2,
+              child: Center(
+                child: Text(lastRecognized, style: GoogleFonts.roboto(fontSize: width * 0.04, fontWeight: FontWeight.w500),),
+              ),
+            ),
+            GestureDetector(
+              child: IconButton(
+                onPressed: () {},
+                icon: Icon(Icons.arrow_drop_up, size: width * 0.15, color: Colors.white,),
+                style: IconButton.styleFrom(
+                  backgroundColor: Colors.amber,
+                  shape: BeveledRectangleBorder(),
+                ),
+              ),
+              onTapDown: (_) {
+                sendData(4);
+              },
+              onTapCancel: () {
+                sendData(0);
+              },
+              onTapUp: (_) {
+                sendData(0);
+              },
+            ),
+            SizedBox(
+              height: height * 0.01,
+            ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                GestureDetector(
+                  child: IconButton(
+                    onPressed: () {},
+                    icon: Icon(Icons.arrow_left, size: width * 0.15, color: Colors.white,),
+                    style: IconButton.styleFrom(
+                      backgroundColor: Colors.amber,
+                      shape: BeveledRectangleBorder(),
+                    ),
+                  ),
+                  onTapDown: (_) {
+                    sendData(3);
+                  },
+                  onTapCancel: () {
+                    sendData(0);
+                  },
+                  onTapUp: (_) {
+                    sendData(0);
+                  },
+                ),
+                SizedBox(
+                  width: width * 0.2,
+                ),
+                GestureDetector(
+                  child: IconButton(
+                    onPressed: () {},
+                    icon: Icon(Icons.arrow_right, size: width * 0.15, color: Colors.white,),
+                    style: IconButton.styleFrom(
+                      backgroundColor: Colors.amber,
+                      shape: BeveledRectangleBorder(),
+                    ),
+                  ),
+                  onTapDown: (_) {
+                    sendData(2);
+                  },
+                  onTapCancel: () {
+                    sendData(0);
+                  },
+                  onTapUp: (_) {
+                    sendData(0);
+                  },
+                ),
+              ],
+            ),
+            SizedBox(
+              height: height * 0.01,
+            ),
+            GestureDetector(
+              child: IconButton(
+                onPressed: () {},
+                icon: Icon(Icons.arrow_drop_down, size: width * 0.15, color: Colors.white,),
+                style: IconButton.styleFrom(
+                  backgroundColor: Colors.amber,
+                  shape: BeveledRectangleBorder(),
+                ),
+              ),
+              onTapDown: (_) {
+                sendData(1);
+              },
+              onTapCancel: () {
+                sendData(0);
+              },
+              onTapUp: (_) {
+                sendData(0);
+              },
+            ),
+          ],
+        ) : Column(
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: width * 0.15,
+                  color: Colors.grey.withOpacity(0.2),
+                  height: height,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      IconButton(
+                        onPressed: () {},
+                        icon: Icon(Icons.arrow_drop_up, size: width * 0.1, color: Colors.white,),
+                        style: IconButton.styleFrom(
+                          backgroundColor: Colors.amber,
+                          shape: BeveledRectangleBorder(),
+                        ),
+                      ),
+                      SizedBox(
+                        height: height * 0.1,
+                      ),
+                      IconButton(
+                        onPressed: () {},
+                        icon: Icon(Icons.arrow_drop_down, size: width * 0.1, color: Colors.white,),
+                        style: IconButton.styleFrom(
+                          backgroundColor: Colors.amber,
+                          shape: BeveledRectangleBorder(),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                onLongPress: () {
-                  setState(() {
-                    current = 2;
-                  });
-                },
-                onLongPressEnd: (_) {
-                  setState(() {
-                    current = 0;
-                  });
-                },
-              ),
-              SizedBox(
-                width: width * 0.2,
-              ),
-              GestureDetector(
-                child: IconButton(
-                  onPressed: () {},
-                  icon: Icon(Icons.arrow_drop_up, size: width * 0.15, color: Colors.white,),
-                  style: IconButton.styleFrom(
-                    backgroundColor: Colors.amber,
-                    shape: BeveledRectangleBorder(),
+                Container(
+                  width: width * 0.7,
+                  height: height,
+                  child: Column(
+                    children: [
+                      Container(
+                        width: width * 0.7,
+                        height: height * 0.8,
+                        color: Colors.black,
+                        child: Center(
+                            child: Mjpeg(
+                              stream: "http://192.168.4.3:81/stream",
+                              isLive: true,
+                              width: width * 0.7,
+                              height: height * 0.8,
+                              fit: BoxFit.cover,
+                            )
+                        ),
+                      ),
+                      Container(
+                        child: Text(lastRecognized),
+                      )
+                    ],
                   ),
                 ),
-                onLongPress: () {
-                  setState(() {
-                    current = 3;
-                  });
-                },
-                onLongPressEnd: (_) {
-                  setState(() {
-                    current = 0;
-                  });
-                },
-              ),
-            ],
-          ),
-          SizedBox(
-            height: height * 0.01,
-          ),
-          GestureDetector(
-            child: IconButton(
-              onPressed: () {},
-              icon: Icon(Icons.arrow_drop_up, size: width * 0.15, color: Colors.white,),
-              style: IconButton.styleFrom(
-                backgroundColor: Colors.amber,
-                shape: BeveledRectangleBorder(),
-              ),
-            ),
-            onLongPress: () {
-              setState(() {
-                current = 4;
-              });
-            },
-            onLongPressEnd: (_) {
-              setState(() {
-                current = 0;
-              });
-            },
-          ),
-        ],
-      ) : Column(
-        children: [
-          Row(
-            children: [
-              Container(
-                width: width * 0.15,
-                color: Colors.grey.withOpacity(0.2),
-                height: height,
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    IconButton(
-                      onPressed: () {},
-                      icon: Icon(Icons.arrow_drop_up, size: width * 0.1, color: Colors.white,),
-                      style: IconButton.styleFrom(
-                        backgroundColor: Colors.amber,
-                        shape: BeveledRectangleBorder(),
+                Container(
+                  width: width * 0.15,
+                  color: Colors.grey.withOpacity(0.2),
+                  height: height,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      IconButton(
+                        onPressed: () {},
+                        icon: Icon(Icons.arrow_drop_up, size: width * 0.1, color: Colors.white,),
+                        style: IconButton.styleFrom(
+                          backgroundColor: Colors.amber,
+                          shape: BeveledRectangleBorder(),
+                        ),
                       ),
-                    ),
-                    SizedBox(
-                      height: height * 0.1,
-                    ),
-                    IconButton(
-                      onPressed: () {},
-                      icon: Icon(Icons.arrow_drop_down, size: width * 0.1, color: Colors.white,),
-                      style: IconButton.styleFrom(
-                        backgroundColor: Colors.amber,
-                        shape: BeveledRectangleBorder(),
+                      SizedBox(
+                        height: height * 0.1,
                       ),
-                    ),
-                  ],
+                      IconButton(
+                        onPressed: () {},
+                        icon: Icon(Icons.arrow_drop_down, size: width * 0.1, color: Colors.white,),
+                        style: IconButton.styleFrom(
+                          backgroundColor: Colors.amber,
+                          shape: BeveledRectangleBorder(),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              Container(
-                width: width * 0.7,
-                height: height,
-                child: Column(
-                  children: [
-                    Container(
-                      width: width * 0.7,
-                      height: height * 0.8,
-                      color: Colors.black,
-                      child: Center(
-                          child: Mjpeg(
-                            stream: "http://192.168.4.3:81/stream",
-                            isLive: true,
-                            width: width * 0.7,
-                            height: height * 0.8,
-                            fit: BoxFit.cover,
-                          )
-                      ),
-                    ),
-                    Container(
-                      child: Text(lastRecognized),
-                    )
-                  ],
-                ),
-              ),
-              Container(
-                width: width * 0.15,
-                color: Colors.grey.withOpacity(0.2),
-                height: height,
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    IconButton(
-                      onPressed: () {},
-                      icon: Icon(Icons.arrow_drop_up, size: width * 0.1, color: Colors.white,),
-                      style: IconButton.styleFrom(
-                        backgroundColor: Colors.amber,
-                        shape: BeveledRectangleBorder(),
-                      ),
-                    ),
-                    SizedBox(
-                      height: height * 0.1,
-                    ),
-                    IconButton(
-                      onPressed: () {},
-                      icon: Icon(Icons.arrow_drop_down, size: width * 0.1, color: Colors.white,),
-                      style: IconButton.styleFrom(
-                        backgroundColor: Colors.amber,
-                        shape: BeveledRectangleBorder(),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          )
-        ],
-      )
+              ],
+            )
+          ],
+        )
     );
   }
 }
